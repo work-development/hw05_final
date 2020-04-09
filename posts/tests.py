@@ -1,9 +1,11 @@
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.contrib.auth import get_user_model
 from django.core.files.images import ImageFile
 from posts.models import Post, Group, Follow
 from django.shortcuts import get_object_or_404
+from django.conf import settings
 import time
+
 
 
 User = get_user_model()
@@ -74,28 +76,22 @@ class ProfileTest(TestCase):
         response = self.client.get(f"/sarah/{post.id}/")
         self.assertContains(response, 'img')
         
-    # Из-за кеширования нужно делать timesleep (тест с главной стр), если убрать кеширование в шаблоне index то всё будет ОК
+    # Из-за кеширования нужно делать timesleep (тест с главной стр), если убрать кеширование в шаблоне index то всё будет ОК,
+    #ИЛИ воспользоваться декоратором @override_settings с настройкой settings BACKEND!
+    @override_settings(CACHES=settings.TEST_CACHES)  
     def test_post_with_picture_on_the_main_profile_group_pages(self):
         self.client.login(username='sarah', password='12345678')
         self.group = Group.objects.create(title='Test_group', slug='test_gr', description='It is test group')
         with open('img_test/1.jpg','rb') as img:
             self.client.post("/new/", {'text': 'post with image', 'image': img, 'group': self.group.id})
         post = Post.objects.get( text='post with image')
-        #print(post.id, post.image, post.group) сохранил чтобы потом вспомнить
-        time.sleep(20) # ЖДЕМ ЧТОБЫ ПОСТ ПОЯВИЛСЯ ПОСЛЕ КЕШИРОВАНИЯ
         response = self.client.get("/")
-        #print(response.content.decode('utf-8')
         self.assertContains(response, 'img')
         response = self.client.get(f'/{self.user.username}/')
         self.assertContains(response, 'img')
         response = self.client.get(f'/group/{self.group.slug}')
         self.assertContains(response, 'img')
 
-    # def test_non_graphical_file_download_protection(self):
-    #     self.client.login(username='sarah', password='12345678')
-    #     with self.assertRaises(ValueError):
-    #         with open('img_test/wd.docx','rb') as img:
-    #             self.client.post("/new/", {'text': 'post with image', 'image': img})
 
     def test_non_graphical_file_download_protection(self):
         self.client.login(username='sarah', password='12345678')
