@@ -31,21 +31,36 @@ def group_posts(request, slug):
         page = paginator.get_page(page_number)
         return render(request, "group.html", {"group": group, "posts": posts, 'paginator': paginator, 'page': page})
 
+# Оставил эту функцию как важный альтернативный петтерн 
+#@login_required здесь не получается так как нужно перенаправлять пользователя на главную стр если он не прошел регистрацию а хочет добавить пост
+# def new_post(request):
+#         if request.user.is_authenticated:  # Праверка авторизации
+#                 if request.method == 'POST':
+#                         form = PostForm(request.POST)
+                        
+#                         if form.is_valid():
+#                                 post=Post.objects.create(author=request.user, text=form.cleaned_data['text'],
+#                                                         group=form.cleaned_data['group'])
+#                                 form = PostForm(request.POST or None, files=request.FILES or None, instance=post)
+#                                 form.save()
+                                
+#                         # if form.is_valid():
+#                         #         Post.objects.create(author=request.user, text=form.cleaned_data['text'],
+#                         #                             group=form.cleaned_data['group'])
+#                                 return redirect('/')
+#                 form = PostForm()
+#                 return render(request, 'new.html', {'form': form})
+#         return redirect(
+#                 '/')  # Если пользователь не авторизован и пытается войти на стр new то его сразу перенаправляет на главную
 
 def new_post(request):
         if request.user.is_authenticated:  # Праверка авторизации
                 if request.method == 'POST':
-                        form = PostForm(request.POST)
-                        
+                        form = PostForm(request.POST, files=request.FILES)
                         if form.is_valid():
-                                post=Post.objects.create(author=request.user, text=form.cleaned_data['text'],
-                                                     group=form.cleaned_data['group'])
-                                form = PostForm(request.POST or None, files=request.FILES or None, instance=post)
-                                form.save()
-                                
-                        # if form.is_valid():
-                        #         Post.objects.create(author=request.user, text=form.cleaned_data['text'],
-                        #                             group=form.cleaned_data['group'])
+                                post = form.save(commit=False)
+                                post.author = request.user
+                                post.save()
                                 return redirect('/')
                 form = PostForm()
                 return render(request, 'new.html', {'form': form})
@@ -61,11 +76,13 @@ def profile(request, username):
         page = paginator.get_page(page_number)
         following = False
         #Follow.objects.filter(user=request.user).exclude(author=author).count() == 0:
+        my_profile = False
         if request.user.is_authenticated:
                 following = Follow.objects.filter(user=request.user).filter(author=author_profile)
+                my_profile = request.user
         return render(request, "profile.html",
                       {"posts": posts, "username": username, "author_profile": author_profile, 'page': page,
-                       'paginator': paginator, 'following':following})
+                       'paginator': paginator, 'following':following, 'my_profile': my_profile})
 
 
 def post_view(request, username, post_id):
